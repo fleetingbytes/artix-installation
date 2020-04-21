@@ -16,15 +16,21 @@ Swap partition must be of type `Linux swap`.
 All other partitions should be `Linux filesystem`.
 
 ### Format disks
-Boot partition has to be formatted with FAT32, like this:
+Boot partition has to be formatted with FAT32. It cannot be labeled (FAT file system does not support labels):
 
     mkfs.fat -F32 /dev/sda1
 
+Swap partition is formatted with `mkswap`. Use `-L SWAP` to label it:
+
+    mkswap -L SWAP /dev/sd2
+
 All other partitions should be ext4. Label them with parameter `-L <name>`:
 
-    mkfs.ext4 -L HOME /dev/sda2
+    mkfs.ext4 -L HOME /dev/sda3
+    mkfs.ext4 -L ROOT /dev/sda4
+    mkfs.ext4 -L DATA /dev/sdb1
 
-This is my setup:
+This is an example setup:
 
     NAME   PARTTYPENAME     FSTYPE LABEL   SIZE TYPE MOUNTPOINT
     sda                                  238.5G disk 
