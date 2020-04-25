@@ -646,3 +646,419 @@ Reboot:
 If everything was right, system will boot and have a wireless internet connection.
 
 ## Post-Installation Configuration
+
+### X.org
+
+Install xorg. there's an undergoing cleanup which leads to problems currently (2020-01) and can be resolved by ignoring xorg-server-xdmx:
+
+    pacman -S xorg --ignore xorg-server-xdmx
+
+### Graphics Card
+
+I have a legacy nvidia card Geforce GTX 675M which is not supported by `nvidia` closed-source drivers. I cannot use the normal nvidia legacy drivers `nvidia-390xx` because Artix uses a custom kernel. Therefore I must install `nvidia-390xx-dkms` which can adapt to custom kernels. Also we need `linux-headers`:
+
+    pacman -S linux-headers
+    pacman -S nvidia-390xx-dkms nvidia-390xx-settings nvidia-390xx-utils
+
+The dkms drivers are built for the custom kernel everytime the kernel gets reinstalled (thanks to [ArchWiki/Pacman#hooks](https://wiki.archlinux.org/index.php/Pacman#Hooks)). That's why we reinstall the kernel:
+
+	pacman -S linux
+
+After the kernel reinstallation the system needs to be restarted. Before restart, `uname -r` still reports the old kernel version for which the nvidia drivers were not built. After reboot `uname -r` will report the new kernel version and the drivers will work with it.
+
+The nvidia drivers have a configuration tool which creates a primitive configuration file in `/etc/X11/xorg.conf` which can be used to create the real configuration files in `/etc/X11/xorg.conf.d/` (or a custom-set directory). Run the nvidia configuration:
+
+    nvidia-xconfig --xconfig=/root/xorg.conf.new
+
+### X.org Configuration
+
+X.org is configured using an alphabetically sorted series of configuration files in `/etc/X11/xorg.conf.d/`, e.g. `10-server conf  20-nvidia.conf  30-monitor.conf  40-modules.conf`. The configuration data are distributed among them. The complete configuration data may look like this:
+
+    # cat /etc/X11/xorg.conf.d/*
+    Section "ServerLayout"
+        Identifier     "Manually configured"
+        Screen         "Laptop Screen"
+        InputDevice    "Mouse0" "CorePointer"
+        InputDevice    "Keyboard0" "CoreKeyboard"
+    EndSection
+    
+    Section "InputDevice"
+    	Identifier  "Keyboard0"
+    	Driver      "kbd"
+    EndSection
+    
+    Section "InputDevice"
+    	Identifier  "Mouse0"
+    	Driver      "mouse"
+    	Option	    "Protocol" "auto"
+    	Option	    "Device" "/dev/input/mice"
+    	Option	    "ZAxisMapping" "4 5 6 7"
+    EndSection
+    
+    Section "Device"
+        Identifier     "Nvidia Card"
+        Driver         "nvidia"
+        VendorName     "NVIDIA Corporation"
+    EndSection
+    
+    Section "Monitor"
+        Identifier     "Laptop LCD"
+        VendorName     "Samsung"
+        DisplaySize    381 215
+    EndSection
+    
+    Section "Screen"
+        Identifier     "Laptop Screen"
+        Device         "Nvidia Card"
+        Monitor        "Laptop LCD"
+        DefaultDepth    24
+        SubSection     "Display"
+            Modes       "1920x1080"
+            Depth       24
+        EndSubSection
+    EndSection
+    
+    Section "Module"
+        Load           "glx"
+    EndSection
+
+### Initialize X
+
+If the graphics card drivers were installed correctly, X should initialize flawlessly:
+
+    xinit
+
+The X GUI can be left by jumping back to `tty1` (press Ctrl-Alt-F1). The running X process can be aborted (Ctrl-C). `/var/log/Xorg.0.log` should show a successful loading of the graphics card drivers, e.g. this:
+
+    [  2739.966] (WW) Failed to open protocol names file lib/xorg/protocol.txt
+    [  2739.966]
+    X.Org X Server 1.20.8
+    X Protocol Version 11, Revision 0
+    [  2739.968] Build Operating System: Linux Artix Linux
+    [  2739.969] Current Operating System: Linux lappi 5.6.6-artix1-1 #1 SMP PREEMPT Tue, 21 Apr 2020 13:54:16 +0000 x86_64
+    [  2739.969] Kernel command line: BOOT_IMAGE=/vmlinuz-linux root=UUID=16211fe2-0927-4853-af22-b701645183fd rw loglevel=3 random.trust_cpu=on resume=UUID=8a8c0b83-8b6f-4fea-bd4a-905e7b51ebb4 quiet
+    [  2739.970] Build Date: 30 March 2020  02:12:50PM
+    [  2739.971] 
+    [  2739.971] Current version of pixman: 0.38.4
+    [  2739.972] 	Before reporting problems, check http://wiki.x.org
+    	to make sure that you have the latest version.
+    [  2739.972] Markers: (--) probed, (**) from config file, (==) default setting,
+    	(++) from command line, (!!) notice, (II) informational,
+    	(WW) warning, (EE) error, (NI) not implemented, (??) unknown.
+    [  2739.974] (==) Log file: "/var/log/Xorg.0.log", Time: Fri Apr 24 11:08:51 2020
+    [  2739.975] (==) Using config directory: "/etc/X11/xorg.conf.d"
+    [  2739.975] (==) Using system config directory "/usr/share/X11/xorg.conf.d"
+    [  2739.975] (==) ServerLayout "Manually configured"
+    [  2739.975] (**) |-->Screen "Laptop Screen" (0)
+    [  2739.975] (**) |   |-->Monitor "Laptop LCD"
+    [  2739.975] (**) |   |-->Device "Nvidia Card"
+    [  2739.976] (**) |-->Input Device "Mouse0"
+    [  2739.976] (**) |-->Input Device "Keyboard0"
+    [  2739.976] (==) Automatically adding devices
+    [  2739.976] (==) Automatically enabling devices
+    [  2739.976] (==) Automatically adding GPU devices
+    [  2739.976] (==) Automatically binding GPU devices
+    [  2739.976] (==) Max clients allowed: 256, resource mask: 0x1fffff
+    [  2739.976] (WW) `fonts.dir' not found (or not valid) in "/usr/share/fonts/misc".
+    [  2739.976] 	Entry deleted from font path.
+    [  2739.976] 	(Run 'mkfontdir' on "/usr/share/fonts/misc").
+    [  2739.976] (WW) The directory "/usr/share/fonts/TTF" does not exist.
+    [  2739.976] 	Entry deleted from font path.
+    [  2739.976] (WW) The directory "/usr/share/fonts/OTF" does not exist.
+    [  2739.976] 	Entry deleted from font path.
+    [  2739.976] (WW) The directory "/usr/share/fonts/Type1" does not exist.
+    [  2739.976] 	Entry deleted from font path.
+    [  2739.976] (==) FontPath set to:
+    	/usr/share/fonts/100dpi,
+    	/usr/share/fonts/75dpi
+    [  2739.976] (==) ModulePath set to "/usr/lib/xorg/modules"
+    [  2739.976] (WW) Hotplugging is on, devices using drivers 'kbd', 'mouse' or 'vmmouse' will be disabled.
+    [  2739.976] (WW) Disabling Mouse0
+    [  2739.976] (WW) Disabling Keyboard0
+    [  2739.976] (II) Module ABI versions:
+    [  2739.976] 	X.Org ANSI C Emulation: 0.4
+    [  2739.976] 	X.Org Video Driver: 24.1
+    [  2739.976] 	X.Org XInput driver : 24.1
+    [  2739.976] 	X.Org Server Extension : 10.0
+    [  2739.977] (--) using VT number 7
+    
+    [  2739.977] (II) systemd-logind: logind integration requires -keeptty and -keeptty was not provided, disabling logind integration
+    [  2739.977] (II) xfree86: Adding drm device (/dev/dri/card0)
+    [  2739.978] (**) OutputClass "nvidia" ModulePath extended to "/usr/lib/nvidia/xorg,/usr/lib/xorg/modules,/usr/lib/xorg/modules"
+    [  2739.979] (--) PCI:*(1@0:0:0) 10de:1212:144d:c0d0 rev 161, Mem @ 0xf6000000/16777216, 0xec000000/67108864, 0xf0000000/33554432, I/O @ 0x0000e000/128, BIOS @ 0x????????/131072
+    [  2739.979] (WW) Open ACPI failed (/var/run/acpid.socket) (No such file or directory)
+    [  2739.979] (II) "glx" will be loaded. This was enabled by default and also specified in the config file.
+    [  2739.979] (II) LoadModule: "glx"
+    [  2739.979] (II) Loading /usr/lib/nvidia/xorg/libglx.so
+    [  2739.982] (II) Module glx: vendor="NVIDIA Corporation"
+    [  2739.982] 	compiled for 4.0.2, module version = 1.0.0
+    [  2739.982] 	Module class: X.Org Server Extension
+    [  2739.982] (II) NVIDIA GLX Module  390.132  Fri Nov  1 04:00:46 PDT 2019
+    [  2739.982] (II) LoadModule: "nvidia"
+    [  2739.982] (II) Loading /usr/lib/xorg/modules/drivers/nvidia_drv.so
+    [  2739.982] (II) Module nvidia: vendor="NVIDIA Corporation"
+    [  2739.982] 	compiled for 4.0.2, module version = 1.0.0
+    [  2739.982] 	Module class: X.Org Video Driver
+    [  2739.982] (II) NVIDIA dlloader X Driver  390.132  Fri Nov  1 03:36:28 PDT 2019
+    [  2739.982] (II) NVIDIA Unified Driver for all Supported NVIDIA GPUs
+    [  2739.983] (II) Loading sub module "fb"
+    [  2739.983] (II) LoadModule: "fb"
+    [  2739.984] (II) Loading /usr/lib/xorg/modules/libfb.so
+    [  2739.984] (II) Module fb: vendor="X.Org Foundation"
+    [  2739.984] 	compiled for 1.20.8, module version = 1.0.0
+    [  2739.984] 	ABI class: X.Org ANSI C Emulation, version 0.4
+    [  2739.984] (II) Loading sub module "wfb"
+    [  2739.984] (II) LoadModule: "wfb"
+    [  2739.984] (II) Loading /usr/lib/xorg/modules/libwfb.so
+    [  2739.984] (II) Module wfb: vendor="X.Org Foundation"
+    [  2739.984] 	compiled for 1.20.8, module version = 1.0.0
+    [  2739.984] 	ABI class: X.Org ANSI C Emulation, version 0.4
+    [  2739.984] (II) Loading sub module "ramdac"
+    [  2739.984] (II) LoadModule: "ramdac"
+    [  2739.984] (II) Module "ramdac" already built-in
+    [  2739.986] (**) NVIDIA(0): Depth 24, (--) framebuffer bpp 32
+    [  2739.986] (==) NVIDIA(0): RGB weight 888
+    [  2739.986] (==) NVIDIA(0): Default visual is TrueColor
+    [  2739.986] (==) NVIDIA(0): Using gamma correction (1.0, 1.0, 1.0)
+    [  2739.986] (II) Applying OutputClass "nvidia" options to /dev/dri/card0
+    [  2739.986] (**) NVIDIA(0): Option "AllowEmptyInitialConfiguration"
+    [  2739.986] (**) NVIDIA(0): Enabling 2D acceleration
+    [  2740.370] (--) NVIDIA(0): Valid display device(s) on GPU-0 at PCI:1:0:0
+    [  2740.370] (--) NVIDIA(0):     CRT-0
+    [  2740.370] (--) NVIDIA(0):     DFP-0
+    [  2740.370] (--) NVIDIA(0):     DFP-1
+    [  2740.370] (--) NVIDIA(0):     DFP-2
+    [  2740.370] (--) NVIDIA(0):     DFP-3 (boot)
+    [  2740.371] (II) NVIDIA(0): NVIDIA GPU GeForce GTX 675M (GF114) at PCI:1:0:0 (GPU-0)
+    [  2740.371] (--) NVIDIA(0): Memory: 2097152 kBytes
+    [  2740.371] (--) NVIDIA(0): VideoBIOS: 70.24.43.00.12
+    [  2740.371] (II) NVIDIA(0): Detected PCI Express Link width: 16X
+    [  2740.371] (--) NVIDIA(GPU-0): CRT-0: disconnected
+    [  2740.372] (--) NVIDIA(GPU-0): CRT-0: 400.0 MHz maximum pixel clock
+    [  2740.372] (--) NVIDIA(GPU-0):
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-0: disconnected
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-0: Internal TMDS
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-0: 165.0 MHz maximum pixel clock
+    [  2740.372] (--) NVIDIA(GPU-0):
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-1: disconnected
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-1: Internal TMDS
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-1: 165.0 MHz maximum pixel clock
+    [  2740.372] (--) NVIDIA(GPU-0):
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-2: disconnected
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-2: Internal DisplayPort
+    [  2740.372] (--) NVIDIA(GPU-0): DFP-2: 480.0 MHz maximum pixel clock
+    [  2740.372] (--) NVIDIA(GPU-0):
+    [  2740.372] (--) NVIDIA(GPU-0): Seiko/Epson SAMSUNG173HT02-C01 (DFP-3): connected
+    [  2740.372] (--) NVIDIA(GPU-0): Seiko/Epson SAMSUNG173HT02-C01 (DFP-3): Internal DisplayPort
+    [  2740.372] (--) NVIDIA(GPU-0): Seiko/Epson SAMSUNG173HT02-C01 (DFP-3): 480.0 MHz maximum pixel clock
+    [  2740.372] (--) NVIDIA(GPU-0):
+    [  2740.373] (II) NVIDIA(0): Validated MetaModes:
+    [  2740.373] (II) NVIDIA(0):     "DFP-3:1920x1080"
+    [  2740.373] (II) NVIDIA(0): Virtual screen size determined to be 1920 x 1080
+    [  2740.375] (--) NVIDIA(0): DPI set to (128, 124); computed from "UseEdidDpi" X config
+    [  2740.375] (--) NVIDIA(0):     option
+    [  2740.376] (II) NVIDIA: Using 6144.00 MB of virtual memory for indirect memory
+    [  2740.376] (II) NVIDIA:     access.
+    [  2740.378] (II) NVIDIA(0): ACPI: failed to connect to the ACPI event daemon; the daemon
+    [  2740.378] (II) NVIDIA(0):     may not be running or the "AcpidSocketPath" X
+    [  2740.378] (II) NVIDIA(0):     configuration option may not be set correctly.  When the
+    [  2740.378] (II) NVIDIA(0):     ACPI event daemon is available, the NVIDIA X driver will
+    [  2740.378] (II) NVIDIA(0):     try to use it to receive ACPI event notifications.  For
+    [  2740.378] (II) NVIDIA(0):     details, please see the "ConnectToAcpid" and
+    [  2740.378] (II) NVIDIA(0):     "AcpidSocketPath" X configuration options in Appendix B: X
+    [  2740.378] (II) NVIDIA(0):     Config Options in the README.
+    [  2740.399] (II) NVIDIA(0): Setting mode "DFP-3:1920x1080"
+    [  2741.463] (==) NVIDIA(0): Disabling shared memory pixmaps
+    [  2741.463] (==) NVIDIA(0): Backing store enabled
+    [  2741.463] (==) NVIDIA(0): Silken mouse disabled
+    [  2741.463] (==) NVIDIA(0): DPMS enabled
+    [  2741.463] (II) Loading sub module "dri2"
+    [  2741.463] (II) LoadModule: "dri2"
+    [  2741.463] (II) Module "dri2" already built-in
+    [  2741.463] (II) NVIDIA(0): [DRI2] Setup complete
+    [  2741.463] (II) NVIDIA(0): [DRI2]   VDPAU driver: nvidia
+    [  2741.463] (II) Initializing extension Generic Event Extension
+    [  2741.463] (II) Initializing extension SHAPE
+    [  2741.463] (II) Initializing extension MIT-SHM
+    [  2741.463] (II) Initializing extension XInputExtension
+    [  2741.463] (II) Initializing extension XTEST
+    [  2741.463] (II) Initializing extension BIG-REQUESTS
+    [  2741.463] (II) Initializing extension SYNC
+    [  2741.463] (II) Initializing extension XKEYBOARD
+    [  2741.463] (II) Initializing extension XC-MISC
+    [  2741.464] (II) Initializing extension SECURITY
+    [  2741.464] (II) Initializing extension XFIXES
+    [  2741.464] (II) Initializing extension RENDER
+    [  2741.464] (II) Initializing extension RANDR
+    [  2741.464] (II) Initializing extension COMPOSITE
+    [  2741.464] (II) Initializing extension DAMAGE
+    [  2741.464] (II) Initializing extension MIT-SCREEN-SAVER
+    [  2741.464] (II) Initializing extension DOUBLE-BUFFER
+    [  2741.464] (II) Initializing extension RECORD
+    [  2741.464] (II) Initializing extension DPMS
+    [  2741.464] (II) Initializing extension Present
+    [  2741.464] (II) Initializing extension DRI3
+    [  2741.464] (II) Initializing extension X-Resource
+    [  2741.464] (II) Initializing extension XVideo
+    [  2741.464] (II) Initializing extension XVideo-MotionCompensation
+    [  2741.464] (II) Initializing extension XFree86-VidModeExtension
+    [  2741.464] (II) Initializing extension XFree86-DGA
+    [  2741.464] (II) Initializing extension XFree86-DRI
+    [  2741.464] (II) Initializing extension DRI2
+    [  2741.464] (II) Initializing extension GLX
+    [  2741.464] (II) Initializing extension GLX
+    [  2741.464] (II) Indirect GLX disabled.
+    [  2741.464] (II) Initializing extension NV-GLX
+    [  2741.464] (II) Initializing extension NV-CONTROL
+    [  2741.464] (II) Initializing extension XINERAMA
+    [  2741.523] (II) config/udev: Adding input device Power Button (/dev/input/event2)
+    [  2741.523] (**) Power Button: Applying InputClass "libinput keyboard catchall"
+    [  2741.523] (II) LoadModule: "libinput"
+    [  2741.523] (II) Loading /usr/lib/xorg/modules/input/libinput_drv.so
+    [  2741.525] (II) Module libinput: vendor="X.Org Foundation"
+    [  2741.525] 	compiled for 1.20.7, module version = 0.29.0
+    [  2741.525] 	Module class: X.Org XInput Driver
+    [  2741.525] 	ABI class: X.Org XInput driver, version 24.1
+    [  2741.525] (II) Using input driver 'libinput' for 'Power Button'
+    [  2741.525] (**) Power Button: always reports core events
+    [  2741.525] (**) Option "Device" "/dev/input/event2"
+    [  2741.525] (**) Option "_source" "server/udev"
+    [  2741.526] (II) event2  - Power Button: is tagged by udev as: Keyboard
+    [  2741.526] (II) event2  - Power Button: device is a keyboard
+    [  2741.527] (II) event2  - Power Button: device removed
+    [  2741.565] (**) Option "config_info" "udev:/sys/devices/LNXSYSTM:00/LNXPWRBN:00/input/input2/event2"
+    [  2741.565] (II) XINPUT: Adding extended input device "Power Button" (type: KEYBOARD, id 6)
+    [  2741.567] (II) event2  - Power Button: is tagged by udev as: Keyboard
+    [  2741.567] (II) event2  - Power Button: device is a keyboard
+    [  2741.568] (II) config/udev: Adding input device Video Bus (/dev/input/event3)
+    [  2741.568] (**) Video Bus: Applying InputClass "libinput keyboard catchall"
+    [  2741.568] (II) Using input driver 'libinput' for 'Video Bus'
+    [  2741.568] (**) Video Bus: always reports core events
+    [  2741.568] (**) Option "Device" "/dev/input/event3"
+    [  2741.568] (**) Option "_source" "server/udev"
+    [  2741.569] (II) event3  - Video Bus: is tagged by udev as: Keyboard
+    [  2741.569] (II) event3  - Video Bus: device is a keyboard
+    [  2741.569] (II) event3  - Video Bus: device removed
+    [  2741.640] (**) Option "config_info" "udev:/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00/device:07/LNXVIDEO:00/input/input3/event3"
+    [  2741.640] (II) XINPUT: Adding extended input device "Video Bus" (type: KEYBOARD, id 7)
+    [  2741.641] (II) event3  - Video Bus: is tagged by udev as: Keyboard
+    [  2741.641] (II) event3  - Video Bus: device is a keyboard
+    [  2741.642] (II) config/udev: Adding input device Power Button (/dev/input/event1)
+    [  2741.642] (**) Power Button: Applying InputClass "libinput keyboard catchall"
+    [  2741.642] (II) Using input driver 'libinput' for 'Power Button'
+    [  2741.642] (**) Power Button: always reports core events
+    [  2741.642] (**) Option "Device" "/dev/input/event1"
+    [  2741.642] (**) Option "_source" "server/udev"
+    [  2741.643] (II) event1  - Power Button: is tagged by udev as: Keyboard
+    [  2741.643] (II) event1  - Power Button: device is a keyboard
+    [  2741.643] (II) event1  - Power Button: device removed
+    [  2741.685] (**) Option "config_info" "udev:/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0C0C:00/input/input1/event1"
+    [  2741.685] (II) XINPUT: Adding extended input device "Power Button" (type: KEYBOARD, id 8)
+    [  2741.687] (II) event1  - Power Button: is tagged by udev as: Keyboard
+    [  2741.687] (II) event1  - Power Button: device is a keyboard
+    [  2741.687] (II) config/udev: Adding input device Lid Switch (/dev/input/event0)
+    [  2741.687] (II) No input driver specified, ignoring this device.
+    [  2741.687] (II) This device may have been added with another device file.
+    [  2741.688] (II) config/udev: Adding input device HDA NVidia HDMI/DP,pcm=3 (/dev/input/event7)
+    [  2741.688] (II) No input driver specified, ignoring this device.
+    [  2741.688] (II) This device may have been added with another device file.
+    [  2741.688] (II) config/udev: Adding input device HDA NVidia HDMI/DP,pcm=7 (/dev/input/event8)
+    [  2741.688] (II) No input driver specified, ignoring this device.
+    [  2741.688] (II) This device may have been added with another device file.
+    [  2741.689] (II) config/udev: Adding input device HDA NVidia HDMI/DP,pcm=8 (/dev/input/event9)
+    [  2741.689] (II) No input driver specified, ignoring this device.
+    [  2741.689] (II) This device may have been added with another device file.
+    [  2741.689] (II) config/udev: Adding input device HDA NVidia HDMI/DP,pcm=9 (/dev/input/event10)
+    [  2741.689] (II) No input driver specified, ignoring this device.
+    [  2741.689] (II) This device may have been added with another device file.
+    [  2741.689] (II) config/udev: Adding input device SC-20FHL11146M: SC-20FHL11146M (/dev/input/event6)
+    [  2741.689] (**) SC-20FHL11146M: SC-20FHL11146M: Applying InputClass "libinput keyboard catchall"
+    [  2741.690] (II) Using input driver 'libinput' for 'SC-20FHL11146M: SC-20FHL11146M'
+    [  2741.690] (**) SC-20FHL11146M: SC-20FHL11146M: always reports core events
+    [  2741.690] (**) Option "Device" "/dev/input/event6"
+    [  2741.690] (**) Option "_source" "server/udev"
+    [  2741.691] (II) event6  - SC-20FHL11146M: SC-20FHL11146M: is tagged by udev as: Keyboard
+    [  2741.691] (II) event6  - SC-20FHL11146M: SC-20FHL11146M: device is a keyboard
+    [  2741.692] (II) event6  - SC-20FHL11146M: SC-20FHL11146M: device removed
+    [  2741.765] (**) Option "config_info" "udev:/sys/devices/pci0000:00/0000:00:1a.0/usb1/1-1/1-1.4/1-1.4:1.0/input/input18/event6"
+    [  2741.765] (II) XINPUT: Adding extended input device "SC-20FHL11146M: SC-20FHL11146M" (type: KEYBOARD, id 9)
+    [  2741.767] (II) event6  - SC-20FHL11146M: SC-20FHL11146M: is tagged by udev as: Keyboard
+    [  2741.767] (II) event6  - SC-20FHL11146M: SC-20FHL11146M: device is a keyboard
+    [  2741.768] (II) config/udev: Adding input device HDA Intel PCH Mic (/dev/input/event11)
+    [  2741.768] (II) No input driver specified, ignoring this device.
+    [  2741.768] (II) This device may have been added with another device file.
+    [  2741.768] (II) config/udev: Adding input device HDA Intel PCH Headphone (/dev/input/event12)
+    [  2741.768] (II) No input driver specified, ignoring this device.
+    [  2741.768] (II) This device may have been added with another device file.
+    [  2741.769] (II) config/udev: Adding input device AT Translated Set 2 keyboard (/dev/input/event4)
+    [  2741.769] (**) AT Translated Set 2 keyboard: Applying InputClass "libinput keyboard catchall"
+    [  2741.769] (II) Using input driver 'libinput' for 'AT Translated Set 2 keyboard'
+    [  2741.769] (**) AT Translated Set 2 keyboard: always reports core events
+    [  2741.769] (**) Option "Device" "/dev/input/event4"
+    [  2741.769] (**) Option "_source" "server/udev"
+    [  2741.770] (II) event4  - AT Translated Set 2 keyboard: is tagged by udev as: Keyboard
+    [  2741.770] (II) event4  - AT Translated Set 2 keyboard: device is a keyboard
+    [  2741.771] (II) event4  - AT Translated Set 2 keyboard: device removed
+    [  2741.805] (**) Option "config_info" "udev:/sys/devices/platform/i8042/serio0/input/input4/event4"
+    [  2741.805] (II) XINPUT: Adding extended input device "AT Translated Set 2 keyboard" (type: KEYBOARD, id 10)
+    [  2741.807] (II) event4  - AT Translated Set 2 keyboard: is tagged by udev as: Keyboard
+    [  2741.807] (II) event4  - AT Translated Set 2 keyboard: device is a keyboard
+    [  2741.808] (II) config/udev: Adding input device ETPS/2 Elantech Touchpad (/dev/input/event13)
+    [  2741.808] (**) ETPS/2 Elantech Touchpad: Applying InputClass "libinput touchpad catchall"
+    [  2741.808] (II) Using input driver 'libinput' for 'ETPS/2 Elantech Touchpad'
+    [  2741.808] (**) ETPS/2 Elantech Touchpad: always reports core events
+    [  2741.808] (**) Option "Device" "/dev/input/event13"
+    [  2741.808] (**) Option "_source" "server/udev"
+    [  2741.810] (II) event13 - ETPS/2 Elantech Touchpad: is tagged by udev as: Touchpad
+    [  2741.811] (II) event13 - ETPS/2 Elantech Touchpad: device is a touchpad
+    [  2741.811] (II) event13 - ETPS/2 Elantech Touchpad: device removed
+    [  2741.872] (**) Option "config_info" "udev:/sys/devices/platform/i8042/serio1/input/input16/event13"
+    [  2741.872] (II) XINPUT: Adding extended input device "ETPS/2 Elantech Touchpad" (type: TOUCHPAD, id 11)
+    [  2741.873] (**) Option "AccelerationScheme" "none"
+    [  2741.873] (**) ETPS/2 Elantech Touchpad: (accel) selected scheme none/0
+    [  2741.873] (**) ETPS/2 Elantech Touchpad: (accel) acceleration factor: 2.000
+    [  2741.873] (**) ETPS/2 Elantech Touchpad: (accel) acceleration threshold: 4
+    [  2741.874] (II) event13 - ETPS/2 Elantech Touchpad: is tagged by udev as: Touchpad
+    [  2741.876] (II) event13 - ETPS/2 Elantech Touchpad: device is a touchpad
+    [  2741.876] (II) config/udev: Adding input device ETPS/2 Elantech Touchpad (/dev/input/mouse0)
+    [  2741.876] (II) No input driver specified, ignoring this device.
+    [  2741.877] (II) This device may have been added with another device file.
+    [  2741.877] (II) config/udev: Adding input device PC Speaker (/dev/input/event5)
+    [  2741.877] (II) No input driver specified, ignoring this device.
+    [  2741.877] (II) This device may have been added with another device file.
+    [  2741.882] (--) NVIDIA(GPU-0): Seiko/Epson SAMSUNG173HT02-C01 (DFP-3): connected
+    [  2741.882] (--) NVIDIA(GPU-0): Seiko/Epson SAMSUNG173HT02-C01 (DFP-3): Internal DisplayPort
+    [  2741.882] (--) NVIDIA(GPU-0): Seiko/Epson SAMSUNG173HT02-C01 (DFP-3): 480.0 MHz maximum pixel clock
+    [  2741.882] (--) NVIDIA(GPU-0):
+    [  2746.687] (II) event2  - Power Button: device removed
+    [  2746.712] (II) event3  - Video Bus: device removed
+    [  2746.778] (II) event1  - Power Button: device removed
+    [  2746.818] (II) event6  - SC-20FHL11146M: SC-20FHL11146M: device removed
+    [  2746.885] (II) event4  - AT Translated Set 2 keyboard: device removed
+    [  2746.912] (II) event13 - ETPS/2 Elantech Touchpad: device removed
+    [  2749.726] (II) UnloadModule: "libinput"
+    [  2749.726] (II) UnloadModule: "libinput"
+    [  2749.726] (II) UnloadModule: "libinput"
+    [  2749.726] (II) UnloadModule: "libinput"
+    [  2749.726] (II) UnloadModule: "libinput"
+    [  2749.726] (II) UnloadModule: "libinput"
+    [  2749.773] (II) NVIDIA(GPU-0): Deleting GPU-0
+    [  2749.774] (II) Server terminated successfully (0). Closing log file.
+
+### Desktop Environment, Display Manager, Greeter
+
+Once X is installed and can be initiated, it's time to install a desktop environment, e.g. `lxqt`, a display manager, e.g. `lxdm`, and a greeter, e.g. `lightdm-webkit-theme-litarvan`:
+
+    pacman -S lxqt
+    pacman -S lightdm-runit
+    pacman -S --needed lightdm-webkit2-greeter lightdm-webkit-theme-litarvan
+
+We need to tell the display manager about the greeter we want to use. For LightDM this is done in `/etc/lightdm.conf` in the `[Seat:*]` section
+
+    greeter-session=lightdm-webkit2-greeter
+
+Now we need to tell Runit about our display manager:
+
+    ln -s /etc/runit/sv/lightdm /run/runit/service/
+
+If we are asked about the default Window Manager to use, we select `openbox` because it is the default windows manager of LightDM.
