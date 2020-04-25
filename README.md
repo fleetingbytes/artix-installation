@@ -83,7 +83,7 @@ Artix provides `linux-lts` and `linux` kernels. It is possible to experiment wit
 
 Use fstabgen to generate /etc/fstab, use `-U` for UUIDs or `-L` for partition labels:
 
-    fstabgen -U /mnt > /mnt/etc/fstab
+    fstabgen -L /mnt > /mnt/etc/fstab
 
 check and verify /etc/fstab. See [ArchWiki/fstab](https://wiki.archlinux.org/index.php/Fstab). It could look like this:
 
