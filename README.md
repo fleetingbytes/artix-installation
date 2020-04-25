@@ -208,6 +208,7 @@ Here I added `random.trust_cpu=on` (Arch Forums post [1](https://bbs.archlinux.o
 
 
 Install grub for UEFI boot systems:
+
     grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=grub
 
 For BIOS boot systems refer to [ArtixWiki/Installation](https://wiki.artixlinux.org/Main/Installation).
