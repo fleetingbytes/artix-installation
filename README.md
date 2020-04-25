@@ -85,7 +85,23 @@ Use fstabgen to generate /etc/fstab, use `-U` for UUIDs or `-L` for partition la
 
     fstabgen -U /mnt > /mnt/etc/fstab
 
-check and verify /etc/fstab. See [ArchWiki/fstab](https://wiki.archlinux.org/index.php/Fstab).
+check and verify /etc/fstab. See [ArchWiki/fstab](https://wiki.archlinux.org/index.php/Fstab). It could look like this:
+
+    # /dev/sda4 UUID=16211fe2-0927-4853-af22-b701645183fd
+    LABEL=ROOT          	/         	ext4      	rw,relatime	0 1
+    
+    # /dev/sda3 UUID=f157bfe7-62f4-42b9-af5d-c1541758a11b
+    LABEL=HOME          	/home     	ext4      	rw,relatime	0 2
+    
+    # /dev/sda1 UUID=A891-66B5
+    /dev/sda1           	/boot     	vfat      	rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,errors=remount-ro	0 2
+    
+    # /dev/sdb1 UUID=0a45d2db-2042-4e2e-a463-a5aef98795e3
+    LABEL=DATA          	/data     	ext4      	rw,relatime	0 2
+    
+    # /dev/sda2 UUID=8a8c0b83-8b6f-4fea-bd4a-905e7b51ebb4
+    LABEL=SWAP          	none      	swap      	defaults  	0 0
+
 
 ## Base System Configuration
 
