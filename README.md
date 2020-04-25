@@ -214,6 +214,7 @@ Install grub for UEFI boot systems:
 For BIOS boot systems refer to [ArtixWiki/Installation](https://wiki.artixlinux.org/Main/Installation).
 
 Create grub config
+
     grub-mkconfig -o /boot/grub/grub.cfg
 
 It is paramount that `/boot` contains `initramfs-linux-fallback.img`, `initramfs-linux.img`, `vmlinuz-linux` otherwise it will not boot. Here is my `tree /boot`:
