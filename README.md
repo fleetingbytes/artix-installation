@@ -22,7 +22,7 @@ Boot partition has to be formatted with FAT32. It cannot be labeled (FAT file sy
 
 Swap partition is formatted with `mkswap`. Use `-L SWAP` to label it:
 
-    mkswap -L SWAP /dev/sd2
+    mkswap -L SWAP /dev/sda2
 
 All other partitions should be ext4. Label them with parameter `-L <name>`:
 
