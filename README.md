@@ -1080,3 +1080,16 @@ Now we need to tell Runit about our display manager:
     ln -s /etc/runit/sv/lightdm /run/runit/service/
 
 If we are asked about the default Window Manager to use, we select `openbox` because it is the default windows manager of LightDM.
+
+### Change Default Editor For Visudo
+
+Temporarily change the editor of `visudo` to vim:
+
+    export EDITOR="vim"
+
+run `visudo` to edit the `/etc/sudoers` file and add the following lines:
+
+    # Reset environment by default:
+    Defaults	env_reset
+    # Set default EDITOR to vim, and do not allow visudo to use EDITOR/VISUAL.
+    Defaults	editor=/usr/bin/vim, !env_editor
