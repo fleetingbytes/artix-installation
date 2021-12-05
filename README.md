@@ -665,6 +665,32 @@ If everything was right, system will boot and have a wireless internet connectio
 
 ## Post-Installation Configuration
 
+### Change Default Editor For Visudo
+
+Temporarily change the editor of `visudo` to vim:
+
+    export EDITOR="vim"
+
+run `visudo` to edit the `/etc/sudoers` file and add the following lines:
+
+    # Reset environment by default:
+    Defaults	env_reset
+    # Set default EDITOR to vim, and do not allow visudo to use EDITOR/VISUAL.
+    Defaults	editor=/usr/bin/vim, !env_editor
+
+also allow wheel group to run commands:
+
+    # Let users of the "wheel" group run commands.
+    %wheel ALL=(ALL) ALL
+
+### SSH Server
+
+Edit `/etc/ssh/sshd_config`
+Set a non-default port `Port <number>`
+Disallow Password authentication: `PasswordAuthentication no`
+Disable s/key passwords: `ChallengeResponseAuthentication no`
+Use PAM `UsePAM yes`
+
 ### X.org
 
 Install xorg. there's an undergoing cleanup which leads to problems currently (2020-01) and can be resolved by ignoring xorg-server-xdmx:
@@ -673,7 +699,14 @@ Install xorg. there's an undergoing cleanup which leads to problems currently (2
 
 ### Graphics Card
 
-I have a legacy nvidia card Geforce GTX 675M which is not supported by `nvidia` closed-source drivers. I cannot use the normal nvidia legacy drivers `nvidia-390xx` because Artix uses a custom kernel. Therefore I must install `nvidia-390xx-dkms` which can adapt to custom kernels. Also we need `linux-headers`:
+I have a legacy nvidia card Geforce GTX 675M which is not supported by `nvidia` closed-source drivers. I cannot use the normal nvidia legacy drivers `nvidia-390xx` because Artix uses a custom kernel. Therefore I must install `nvidia-390xx-dkms` which can adapt to custom kernels. 
+
+nvidia-390xx-dkms and nvidia-390xx-utils is now newly in `[galaxy-gremlins]`, [thanks alium](https://forum.artixlinux.org/index.php/topic,1400.msg9766.html#msg9766), so we need to uncomment this in our `/etc/pacman.conf`:
+
+    [galaxy-gremlins]
+    Include = /etc/pacman.d/mirrorlist
+
+Also we need `linux-headers`:
 
     pacman -S linux-headers
     pacman -S nvidia-390xx-dkms nvidia-390xx-settings nvidia-390xx-utils
@@ -690,9 +723,10 @@ The nvidia drivers have a configuration tool which creates a primitive configura
 
 ### X.org Configuration
 
-X.org is configured using an alphabetically sorted series of configuration files in `/etc/X11/xorg.conf.d/`, e.g. `10-server conf  20-nvidia.conf  30-monitor.conf  40-modules.conf`. The configuration data are distributed among them. The complete configuration data may look like this:
+X.org is configured using an alphabetically sorted series of configuration files in `/etc/X11/xorg.conf.d/`, e.g. `10-server.conf  20-nvidia.conf  30-monitor.conf  40-modules.conf`. The configuration data are distributed among them. The complete configuration data may look like this:
 
     # cat /etc/X11/xorg.conf.d/*
+    # File 10-server.conf
     Section "ServerLayout"
         Identifier     "Manually configured"
         Screen         "Laptop Screen"
@@ -713,12 +747,14 @@ X.org is configured using an alphabetically sorted series of configuration files
     	Option	    "ZAxisMapping" "4 5 6 7"
     EndSection
     
+    # File 20-nvidia.conf
     Section "Device"
         Identifier     "Nvidia Card"
         Driver         "nvidia"
         VendorName     "NVIDIA Corporation"
     EndSection
     
+    # File 30-monitor.conf
     Section "Monitor"
         Identifier     "Laptop LCD"
         VendorName     "Samsung"
@@ -736,6 +772,7 @@ X.org is configured using an alphabetically sorted series of configuration files
         EndSubSection
     EndSection
     
+    # File 40-modules.conf
     Section "Module"
         Load           "glx"
     EndSection
@@ -1071,7 +1108,7 @@ Once X is installed and can be initiated, it's time to install a desktop environ
     pacman -S lightdm-runit
     pacman -S --needed lightdm-webkit2-greeter lightdm-webkit-theme-litarvan
 
-We need to tell the display manager about the greeter we want to use. For LightDM this is done in `/etc/lightdm.conf` in the `[Seat:*]` section
+We need to tell the display manager about the greeter we want to use. For LightDM this is done in `/etc/lightdm/lightdm.conf` in the `[Seat:*]` section
 
     greeter-session=lightdm-webkit2-greeter
 
@@ -1081,15 +1118,18 @@ Now we need to tell Runit about our display manager:
 
 If we are asked about the default Window Manager to use, we select `openbox` because it is the default windows manager of LightDM.
 
-### Change Default Editor For Visudo
+## Tools
 
-Temporarily change the editor of `visudo` to vim:
+### Hugo
 
-    export EDITOR="vim"
+Install hugo, but don't forget to add some helper scripts, e.g. in `/data/scripts`:
 
-run `visudo` to edit the `/etc/sudoers` file and add the following lines:
+    # `hs` to start a hugo server
+    /data/progs/hugo/bin/hugo server -D --bind 192.168.2.135 --disableFastRender --baseURL http://192.168.2.135/
 
-    # Reset environment by default:
-    Defaults	env_reset
-    # Set default EDITOR to vim, and do not allow visudo to use EDITOR/VISUAL.
-    Defaults	editor=/usr/bin/vim, !env_editor
+    # `ti` to show tree of a hugo project but ignore the `themes` dir
+    tree -I themes
+
+
+
+
