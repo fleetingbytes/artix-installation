@@ -56,7 +56,7 @@ If you have freshly created partitions, you can use their labels when mounting t
     swapon /dev/disk/by-label/SWAP
     mount /dev/disk/by-label/ROOT /mnt
     mount /dev/disk/by-label/HOME /mnt/home
-    mount /dev/disk/by-label/BOOT /mnt/boot
+    mount /dev/sda1 /mnt/boot
     mount /dev/disk/by-label/DATA /mnt/data
 
 If the partitions were not created in this session, they have to be mounted by their device names, `mount /dev/sda1 /mnt/boot` etc. 
@@ -106,14 +106,13 @@ check and verify /etc/fstab. See [ArchWiki/fstab](https://wiki.archlinux.org/ind
 ## Base System Configuration
 
 The base system configuration is done from the future root location. This is _especially_ practical for the boot loader configuration and installation. Therefore change to the new root location:
-
-    artools-chroot /mnt
+    artix-chroot /mnt
 
 ### Set the system clock
 
 Browse regions and cities in `/usr/share/zoneinfo/`. Then create a symbolic link to your region and city as `/etc/localtime`.
 
-    ln -sf /usr/share/zoneinfo/<Region>/<City>`
+    ln -sf /usr/share/zoneinfo/<Region>/<City> /etc/localtime
 
 Run hwclock to generate /etc/adjtime:
 
@@ -590,16 +589,18 @@ Also check the output of the `ip link` command to see if a wireless interface wa
 
 Then bring the interface up with:
 
-    ip link set wlp2s0 up
+    ip link set wlan0 up
+
+If this failes because of RF-kill, try `rfkill list all` and then unblock the Wireless LAN according to its number (0, 1, 2, ...) `rfkill unblock 1`.
 
 Now use a network manager to establish a connection. In our case we are using `wpa_supplicant`. In order to use `wpa_cli`, a control interface must be specified for `wpa_supplicant`, and it must be given the rights to update the configuration. Do this by creating a minimal configuration file `/etc/wpa_supplicant/wpa_supplicant.conf`:
 
     ctrl_interface=/run/wpa_supplicant
     update_config=1
 
-Now start wpa_supplicant with:
+Now, assuming your interface is `wlan0`, start wpa_supplicant with:
 
-    wpa_supplicant -B -i interface -c /etc/wpa_supplicant/wpa_supplicant.conf
+    wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf
 
 At this point run:
 
@@ -688,7 +689,7 @@ also allow wheel group to run commands:
 Edit `/etc/ssh/sshd_config`
 Set a non-default port `Port <number>`
 Disallow Password authentication: `PasswordAuthentication no`
-Disable s/key passwords: `ChallengeResponseAuthentication no`
+Disable interactive password input (e.g. by keyboard): `KbdInteractiveAuthentication no`
 Use PAM `UsePAM yes`
 
 ### X.org
@@ -1130,6 +1131,8 @@ Install hugo, but don't forget to add some helper scripts, e.g. in `/data/script
     # `ti` to show tree of a hugo project but ignore the `themes` dir
     tree -I themes
 
+## OMG what did I do
 
+`sudo ln -s /etc/runit/sv /run/runit/service`, but I think everything is still fine, this had no effect
 
 
