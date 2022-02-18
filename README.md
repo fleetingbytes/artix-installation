@@ -684,6 +684,44 @@ also allow wheel group to run commands:
     # Let users of the "wheel" group run commands.
     %wheel ALL=(ALL) ALL
 
+### Log everything a user does
+
+add this to `/etc/pam.d/system-auth`
+
+```
+# log every command executed by a user
+session    required                    pam_tty_audit.so     enable=*
+```
+
+and then enable `auditd` as a service. `auditd` should already be installed in `/usr/bin/auditd`.
+
+```
+sudo mkdir /etc/runit/sv/auditd
+sudo vim /etc/runit/sv/auditd/run
+```
+
+The `run` file should have the following content
+
+```
+#!/bin/sh
+exec 2>&1
+exec /usr/bin/auditd
+```
+
+And create a symbolic link for runit:
+
+```
+sudo ln -s /etc/runit/sv/auditd /run/runit/service/auditd
+```
+
+### Install Ulogd2
+
+```
+sudo pacman -S ulogd
+```
+
+and run it as a service, analogous to `auditd` above. Create a simple run file and tell runit about it.
+
 ### SSH Server
 
 Edit `/etc/ssh/sshd_config`
@@ -691,6 +729,10 @@ Set a non-default port `Port <number>`
 Disallow Password authentication: `PasswordAuthentication no`
 Disable interactive password input (e.g. by keyboard): `KbdInteractiveAuthentication no`
 Use PAM `UsePAM yes`
+
+### nftables
+
+Nftables is the successor of iptables
 
 ### X.org
 
