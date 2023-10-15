@@ -1,5 +1,37 @@
 # artix-installation
 Artix linux installation process, later to be used to improve the Artix wiki or to create a pdf manual
+## Booting Problem
+
+Sometimes it is not possible to select the USB in UEFI setup as the drive to boot from, so it is not easily possible to get into the Artix installation environment. In this case proceed as described in [this answer][grubboot], rewritten here:
+
+* disable the secure boot option in UEFI firmware settings
+* press `c` in grub to open the command line
+* execute `ls` to list all hard drives
+
+```
+grub>ls 
+(hd0) (hd0,msdos2) (hd1) (hd1,gpt8) (hd1,gpt7) (hd1,gpt6) (hd1,gpt5) (hd1,gpt4) (hd1,gpt3) (hd1,gpt2) (hd1,gpt1)
+```
+
+* find which one is your USB stick. Listing each will give you the drive's size, e.g. `ls (hd0,msdos2)`, also for artix you should see `ARTIX` in the drive's name and the path `(hd0,msdos2)/efi/boot/bootx64.efi` should exist.
+* note the uuid of such drive (check with `ls (hd0,msdos2)`)
+* type the following commands (replace `4099-DBD9` with your actual uuid):
+
+```
+insmod part_gpt
+insmod fat
+insmod search_fs_uuid
+insmod chain
+search --fs-uuid --set=root 4099-DBD9
+```
+
+* select the efi file to boot from
+```
+chainloader /efi/boot/bootx64.efi
+```
+
+* finally type `boot`
+
 
 ## Artix Live Environment
 
@@ -1177,4 +1209,4 @@ Install hugo, but don't forget to add some helper scripts, e.g. in `/data/script
 
 `sudo ln -s /etc/runit/sv /run/runit/service`, but I think everything is still fine, this had no effect
 
-
+[grubboot]: https://askubuntu.com/a/1081138/901433
