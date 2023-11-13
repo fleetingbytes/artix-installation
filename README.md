@@ -432,22 +432,8 @@ session    required                    pam_tty_audit.so     enable=*
 and then enable `auditd` as a service. `auditd` should already be installed in `/usr/bin/auditd`.
 
 ```
-sudo mkdir /etc/runit/sv/auditd
-sudo vim /etc/runit/sv/auditd/run
-```
-
-The `run` file should have the following content
-
-```
-#!/bin/sh
-exec 2>&1
-exec /usr/bin/auditd
-```
-
-And create a symbolic link for runit:
-
-```
-sudo ln -s /etc/runit/sv/auditd /run/runit/service/auditd
+sudo pacman -S audit-dinit
+sudo dinitctl enable auditd
 ```
 
 ### Install Ulogd2
@@ -456,7 +442,19 @@ sudo ln -s /etc/runit/sv/auditd /run/runit/service/auditd
 sudo pacman -S ulogd
 ```
 
-and run it as a service, analogous to `auditd` above. Create a simple run file and tell runit about it.
+and run it as a process. The service file would look like this:
+
+```
+# /etc/dinit.d/ulogd
+type            = process
+command         = /usr/bin/ulogd --loglevel=debug
+smooth-recovery = true
+logfile         = /var/log/ulogd.log
+after           = network
+#pid-file        = /run/ulogd.pid
+```
+
+Then create a link in the boot directory `sudo ln -s ../ulogd /etc/dinit.d/boot.d/ulogd`.
 
 ### SSH Server
 
@@ -465,6 +463,21 @@ Set a non-default port `Port <number>`
 Disallow Password authentication: `PasswordAuthentication no`
 Disable interactive password input (e.g. by keyboard): `KbdInteractiveAuthentication no`
 Use PAM `UsePAM yes`
+Allow only certain user groups `AllowGroups ssh-users` and add yourself to this usergroup.
+
+The sshd service file would look like this:
+
+```
+type            = process
+command         = /usr/bin/sshd
+smooth-recovery = true
+logfile         = /var/log/sshd.log
+after           = network
+#pid-file        = /run/sshd.pid
+```
+#### Note on IPv6
+
+There seems to be a bug with ssh to link-local IPv6 addresses: [bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=829004), [sourceware](https://sourceware.org/bugzilla/show_bug.cgi?id=12377), or maybe it's just my router which is wrongly configured.
 
 ### nftables
 
@@ -477,6 +490,8 @@ Install xorg. there's an undergoing cleanup which leads to problems currently (2
     pacman -S xorg --ignore xorg-server-xdmx
 
 ### Graphics Card
+
+This is currently broken, see [this post](https://forum.artixlinux.org/index.php/topic,6131.0.html).
 
 I have a legacy nvidia card Geforce GTX 675M which is not supported by `nvidia` closed-source drivers. I cannot use the normal nvidia legacy drivers `nvidia-390xx` because Artix uses a custom kernel. Therefore I must install `nvidia-390xx-dkms` which can adapt to custom kernels. 
 
